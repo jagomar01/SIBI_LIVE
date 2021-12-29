@@ -6,12 +6,22 @@
         <v-row class="text-center">
             <v-col cols="12">
 
-            <!--Card de inicio de sesión-->
+            <!--Card de registro-->
             <v-card elevation="15" width="500">
                 <v-card-title>
-                    Inicia sesión en LIVE!
+                    Regístrate en LIVE!
                 </v-card-title>
                 <v-card-text>
+                    <v-text-field
+                        label="Nombre"
+                        outlined
+                        clearable
+                    ></v-text-field>
+                    <v-text-field
+                        label="Email"
+                        outlined
+                        clearable
+                    ></v-text-field>
                     <v-text-field
                         label="Usuario"
                         outlined
@@ -22,11 +32,7 @@
                         outlined
                         clearable
                     ></v-text-field>
-                    <v-btn color="grey darken-1 white--text">Iniciar sesión</v-btn>
-
-                    <div>
-                        <br><router-link class="grey--text" to="/register">¿No tienes cuenta? Haz click aquí para registrarte</router-link>
-                    </div>
+                    <v-btn color="grey darken-1 white--text">Registrarse</v-btn>
                 </v-card-text>
             </v-card>
 

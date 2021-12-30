@@ -9,30 +9,32 @@
             <!--Card de registro-->
             <v-card elevation="15" width="500">
                 <v-card-title>
-                    Regístrate en LIVE!
+                    <h2 class="font-weight-light">Regístrate en LIVE!</h2>
                 </v-card-title>
                 <v-card-text>
-                    <v-text-field
-                        label="Nombre"
-                        outlined
-                        clearable
-                    ></v-text-field>
-                    <v-text-field
-                        label="Email"
-                        outlined
-                        clearable
-                    ></v-text-field>
-                    <v-text-field
-                        label="Usuario"
-                        outlined
-                        clearable
-                    ></v-text-field>
-                    <v-text-field
-                        label="Contraseña"
-                        outlined
-                        clearable
-                    ></v-text-field>
-                    <v-btn color="grey darken-1 white--text">Registrarse</v-btn>
+                    <v-form class="pb-2">
+                        <v-text-field
+                            label="Nombre"
+                            outlined
+                            clearable
+                        ></v-text-field>
+                        <v-text-field
+                            label="Email"
+                            outlined
+                            clearable
+                        ></v-text-field>
+                        <v-text-field
+                            label="Usuario"
+                            outlined
+                            clearable
+                        ></v-text-field>
+                        <v-text-field
+                            label="Contraseña"
+                            outlined
+                            clearable
+                        ></v-text-field>
+                        <v-btn class="font-weight-regular" color="grey darken-1 white--text">Registrarse</v-btn>
+                    </v-form>
                 </v-card-text>
             </v-card>
 

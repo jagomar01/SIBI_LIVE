@@ -3,13 +3,13 @@
     <v-col cols="4">
         <v-card class="pl-1 pt-1 pr-1 pb-1">
             <v-card-actions>
-                <v-btn fab icon class="pr-6"><v-icon>mdi-plus</v-icon></v-btn>
+                <v-btn @click="dialog = true" fab icon class="pr-5"><v-icon>mdi-plus</v-icon></v-btn>
             </v-card-actions>
             <v-card-title>
                 <h2 class="font-weight-light">Reproducción actual</h2>
             </v-card-title>
             <v-card-text v-if="!isCancionSeleccionada">
-                <body-1>Comienza añadiendo una canción</body-1>
+                Comienza añadiendo una canción
             </v-card-text>
 
             <!-- Tarjeta de canción seleccionada -->
@@ -38,34 +38,100 @@
             </v-col>
 
         </v-card>
+
+        <!-- Dialogo de búsqueda-->
+        <v-dialog v-model="dialog" width="500">
+            <v-card class="pb-1 pt-1 pl-1 pr-1">
+                <v-btn @click="dialog = false" fab icon class="ml-2 mb-2 mt-2"><v-icon>mdi-close</v-icon></v-btn>
+                <h1 class="font-weight-light pl-7">Buscar</h1>
+                <v-card-text>
+                    <br>
+                    <!-- Cuadro de búsqueda -->
+                    <v-text-field
+                        label="Introducir título"
+                        outlined
+                        clearable
+                        v-model="busqueda"
+                    ></v-text-field>
+
+                    <!-- Items sugeridos -->
+                    <v-list>
+                        <v-list-item @click="seleccionarTrack(item)" link v-for="(item,index) in buscar" :key="index">
+                            <v-list-item-content>
+                                <v-list-item-title>{{item.titulo}}</v-list-item-title>
+                                <v-list-item-subtitle>{{item.artista}}</v-list-item-subtitle>
+                            </v-list-item-content>
+                        </v-list-item>
+                    </v-list>
+
+                </v-card-text>
+            </v-card>
+        </v-dialog>
+
     </v-col>
 </template>
 
 <script>
+
 export default {
     name: 'ReproduccionActualDashboard',
 
     data() {
         return {
-            isCancionSeleccionada: true,
-            cancionSeleccionada: {
-                id: 1,
-                titulo: "Nobody Like You",
-                artista: "Kaskade",
-                bpm: 121,
-                cover: "https://i.scdn.co/image/ab67616d0000b273ff13f0d37ea0d092b5482c0a",
-                button: false
-            }
+            busqueda: null,
+            isCancionSeleccionada: false,
+            cancionSeleccionada: null,
+            dialog: false,
+            itemsProvisionales: [
+                {
+                    titulo: "Everyday Of My Life",
+                    artista: "Third Party",
+                    bpm: 128,
+                    cover: "https://i.scdn.co/image/ab67616d00001e0240398a34052af7ebb29d6b84",
+                    button: false
+                },
+                {
+                    id: 2, 
+                    titulo: "Animals",
+                    artista: "Martin Garrix",
+                    bpm: 128,
+                    cover: "https://i.scdn.co/image/ab67616d00001e02eb6f61d93514dfe530616a68",
+                    button: false
+                },
+                {
+                    id: 3,
+                    titulo: "Don't You Worry Child",
+                    artista: "Swedish House Mafia",
+                    bpm: 125,
+                    cover: "https://i.scdn.co/image/ab67616d00001e029cfe80c0c05ce104f7bab18e",
+                    button: false
+                }
+
+            ],
+            resultadosBusqueda: []
         }
     },
     methods: {
-        seleccionarCancion(){
-            this.isCancionSeleccionada = true;
-        },
         alterarReproduccion(){
             this.cancionSeleccionada.button = !this.cancionSeleccionada.button;
+        },
+        seleccionarTrack(item){
+            this.cancionSeleccionada = item;
+            this.dialog = false;
+            this.isCancionSeleccionada = true;
         }
     },
+    computed:{
+        buscar(){
+            if(this.busqueda){
+                return this.itemsProvisionales.filter(item => 
+                {return this.busqueda.toLowerCase().split(' ').every(v => item.titulo.toLowerCase().includes(v))
+                })
+            }else{
+                return this.itemsProvisionales;
+            }
+        }
+    }
 
 }
 </script>

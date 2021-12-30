@@ -8,7 +8,7 @@
 
             <!-- Tarjetas de recomendación -->
             <v-col v-for="(item, i) in listaRecomendaciones" :key="i">
-                <v-card dark :color="listaColores[i]">
+                <v-card dark :color="listaColores[i]" elevation="7">
                         <div class="d-flex flex-no-wrap justify-space-between">
                             <div>
                                 <v-card-title class="font-weight-regular white--text">
@@ -24,7 +24,6 @@
                                 </v-btn>
                             </div>
 
-                            
                             <v-avatar class="mt-4 mr-4" size="95" tile>
                                 <v-img :src="item.cover"></v-img>
                             </v-avatar>

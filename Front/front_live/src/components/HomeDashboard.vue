@@ -1,13 +1,12 @@
 <template>
     <v-parallax
-    height="700"
+    height="740"
     src="../assets/live-background.jpg">
         <v-container>
             <v-row>
                 <ReproduccionActualDashboard/>
                 <ParametrosDashboard/>
                 <RecomendacionesDashboard />
-
             </v-row>
         </v-container>
     </v-parallax>

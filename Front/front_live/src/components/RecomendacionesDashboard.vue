@@ -22,6 +22,9 @@
                                 <v-btn fab icon @click="alterarReproduccion(item)">
                                     <v-icon>{{item.button ? 'mdi-pause' : 'mdi-play'}}</v-icon>
                                 </v-btn>
+                                <v-btn fab icon>
+                                    <v-icon>mdi-plus</v-icon>
+                                </v-btn>
                             </div>
 
                             <v-avatar class="mt-4 mr-4" size="95" tile>

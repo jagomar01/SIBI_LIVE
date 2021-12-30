@@ -1,15 +1,21 @@
 <template>
     <!-- Columna de parámetros -->
     <v-col cols="4">
+
+        <!-- Tarjeta de hora -->
         <v-card class="pl-1 pt-1">
             <v-card-title>
                 <h2 class="font-weight-light">Parámetros</h2>
             </v-card-title>
-            <v-card-subtitle>
-                <!-- Aqui nos quedamos -->
-                <h1 class="font-weight-medium">{{time}}</h1>
-            </v-card-subtitle>
+            <v-col>
+                <v-card elevation="0">
+                    <v-card-title class="justify-center mr-3">
+                        <h1 class="font-weight-regular">{{time}}</h1>
+                    </v-card-title>
+                </v-card>
+            </v-col>
         </v-card>
+
     </v-col>
 </template>
 

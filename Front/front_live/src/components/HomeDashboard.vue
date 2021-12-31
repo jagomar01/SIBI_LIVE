@@ -1,8 +1,8 @@
 <template>
     <v-parallax
-    height="740"
+    height="710"
     src="../assets/live-background.jpg">
-        <v-container>
+        <v-container fluid>
             <v-row>
                 <ReproduccionActualDashboard/>
                 <ParametrosDashboard/>

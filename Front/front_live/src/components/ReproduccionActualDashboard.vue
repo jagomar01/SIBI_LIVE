@@ -2,11 +2,10 @@
     <!-- Columna de reproducción actual -->
     <v-col cols="4">
         <v-card class="pl-1 pt-1 pr-1 pb-1">
-            <v-card-actions>
-                <v-btn @click="dialog = true" fab icon class="pr-5"><v-icon>mdi-plus</v-icon></v-btn>
-            </v-card-actions>
             <v-card-title>
                 <h2 class="font-weight-light">Reproducción actual</h2>
+                <v-spacer></v-spacer>
+                <v-btn @click="dialog = true" fab icon><v-icon>mdi-plus</v-icon></v-btn>
             </v-card-title>
             <v-card-text v-if="!isCancionSeleccionada">
                 Comienza añadiendo una canción
@@ -44,6 +43,7 @@
             <v-card class="pb-1 pt-1 pl-1 pr-1">
                 <v-btn @click="dialog = false" fab icon class="ml-2 mb-2 mt-2"><v-icon>mdi-close</v-icon></v-btn>
                 <h1 class="font-weight-light pl-7">Buscar</h1>
+                
                 <v-card-text>
                     <br>
                     <!-- Cuadro de búsqueda -->
@@ -72,43 +72,20 @@
 </template>
 
 <script>
+import { mapState } from 'vuex'
 
 export default {
     name: 'ReproduccionActualDashboard',
 
     data() {
         return {
+            /*Variables relacionadas con el cuadro de busqueda*/
             busqueda: null,
-            isCancionSeleccionada: false,
-            cancionSeleccionada: null,
             dialog: false,
-            itemsProvisionales: [
-                {
-                    titulo: "Everyday Of My Life",
-                    artista: "Third Party",
-                    bpm: 128,
-                    cover: "https://i.scdn.co/image/ab67616d00001e0240398a34052af7ebb29d6b84",
-                    button: false
-                },
-                {
-                    id: 2, 
-                    titulo: "Animals",
-                    artista: "Martin Garrix",
-                    bpm: 128,
-                    cover: "https://i.scdn.co/image/ab67616d00001e02eb6f61d93514dfe530616a68",
-                    button: false
-                },
-                {
-                    id: 3,
-                    titulo: "Don't You Worry Child",
-                    artista: "Swedish House Mafia",
-                    bpm: 125,
-                    cover: "https://i.scdn.co/image/ab67616d00001e029cfe80c0c05ce104f7bab18e",
-                    button: false
-                }
 
-            ],
-            resultadosBusqueda: []
+            /*Variables relacionadas con la tarjeta de selección*/
+            isCancionSeleccionada: false,
+            cancionSeleccionada: null
         }
     },
     methods: {
@@ -130,7 +107,8 @@ export default {
             }else{
                 return this.itemsProvisionales;
             }
-        }
+        },
+        ...mapState(['itemsProvisionales'])
     }
 
 }

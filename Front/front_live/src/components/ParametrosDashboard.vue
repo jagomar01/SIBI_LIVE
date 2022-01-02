@@ -9,7 +9,7 @@
 
             <v-col>
                 <!-- Tarjeta de energía -->
-                <v-card class="mb-6" elevation="7">
+                <v-card class="mb-4" elevation="7">
                     <v-card-title>
                         <h2 class="font-weight-light">Energía</h2>
                         <v-spacer></v-spacer>
@@ -17,7 +17,7 @@
                     </v-card-title>
                     <v-card-text>
                         <!--Slider-->
-                        <v-slider :disabled="checkbox" v-model="porcentajeEnergia" track-color="grey" min="0" max="100">
+                        <v-slider :disabled="checkboxMode" v-model="porcentajeEnergia" track-color="grey" min="0" max="100">
                             <template v-slot:prepend>
                                 <v-icon color="grey darken-2">
                                     mdi-minus
@@ -31,14 +31,18 @@
                             </template>
                         </v-slider>
                         <v-checkbox
-                            v-model="checkbox"
+                            v-model="checkboxMode"
                             label="Modo automático"
+                        ></v-checkbox>
+                        <v-checkbox
+                            v-model="checkboxGenero"
+                            label="Mantener género"
                         ></v-checkbox>
                     </v-card-text>
                 </v-card>
 
                 <!-- Tarjeta de peticiones -->
-                <v-card class="mb-6" elevation="7">
+                <v-card class="mb-4" elevation="7">
                     <v-card-title>
                         <h2 class="font-weight-light">Peticiones</h2>
                         <v-spacer></v-spacer>
@@ -59,11 +63,16 @@
                 </v-card>
 
                 <!-- Tarjeta de hora -->
-                <v-card elevation="7">
+                <v-card class="mb-4" elevation="7">
                     <v-card-title class="justify-center mr-3">
                         <h1 class="font-weight-light">{{time}}</h1>
                     </v-card-title>
                 </v-card>
+
+                <!-- Cerrar sesión -->
+                <v-btn @click="cerrarSesion" class="red lighten-1" block elevation="7">
+                    <h2 class="font-weight-light white--text">Cerrar sesión</h2>
+                </v-btn>
 
             </v-col>
         </v-card>
@@ -115,7 +124,8 @@ export default {
 
             /*Variables relacionadas con la tarjeta de energía*/
             porcentajeEnergia: 0,
-            checkbox: true,
+            checkboxMode: true,
+            checkboxGenero: false,
 
             /*Variables relacionadas con la tarjeta de peticiones*/
             peticion: null,
@@ -147,6 +157,10 @@ export default {
         deseleccionarTrack(){
             this.peticionSeleccionada = false;
             this.peticion = null;
+        },
+        cerrarSesion(){
+            /*TODO: guardar en la base de datos la última canción reproducida*/
+            this.$router.push({name: 'Login'});
         }
     },
     beforeDestroy() {

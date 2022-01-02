@@ -1,6 +1,6 @@
 <template>
     <v-parallax
-    height="710"
+    height="700"
     src="../assets/live-background.jpg">
         <v-container fluid>
             <v-row>
@@ -20,6 +20,9 @@ import ReproduccionActualDashboard from '../components/ReproduccionActualDashboa
 export default {
 
     name: 'HomeDashboard',
+    props: {
+        usuario: String
+    },
 
     data() {
         return {

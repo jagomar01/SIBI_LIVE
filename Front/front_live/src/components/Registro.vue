@@ -12,7 +12,7 @@
                     <h2 class="font-weight-light">Regístrate en LIVE!</h2>
                 </v-card-title>
                 <v-card-text>
-                    <v-form @submit.prevent="registrar" class="pb-2">
+                    <v-form @enter="registrar" @submit.prevent="registrar" class="pb-2">
                         <v-text-field
                             label="Nombre"
                             outlined
@@ -100,9 +100,27 @@ export default {
                             this.snackbar = true;
                             this.limpiarFormulario();
                         }else{
-                            this.cambiarUsuario(this.usuario);
-                            this.$router.push({name: 'Dashboard'});
-                            this.limpiarFormulario();
+                            axios
+                                .post('http://localhost:3000/crearNodoDeseo', {
+                                    usuario: this.usuario,
+                                })
+                                .then(response => {
+                                    if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                                        this.textoSnackbar = "Se produjo un error. Revisa los datos e inténtalo de nuevo";
+                                        this.snackbar = true;
+                                        this.limpiarFormulario();
+                                    }else{
+                                        this.cambiarUsuario(this.usuario);
+                                        this.$router.push({name: 'Dashboard'});
+                                        this.limpiarFormulario();
+                                    }
+                                })
+                                .catch(error => {
+                                    this.textoSnackbar = "Se produjo un error. Revisa los datos e inténtalo de nuevo";
+                                    this.snackbar = true;
+                                    this.limpiarFormulario();
+                                    console.log(error);
+                                })
                         }
                     })
                     .catch(error =>{

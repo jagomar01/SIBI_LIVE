@@ -2,7 +2,7 @@
     <!-- Columna de parámetros -->
     <v-col cols="4">
 
-        <v-card class="pl-1 pt-1 pr-1 pb-1">
+        <v-card class="pl-1 pt-1 pr-1">
             <v-card-title>
                 <h2 class="font-weight-light">Parámetros</h2>
             </v-card-title>
@@ -68,11 +68,6 @@
                         <h1 class="font-weight-light">{{time}}</h1>
                     </v-card-title>
                 </v-card>
-
-                <!-- Cerrar sesión -->
-                <v-btn @click="cerrarSesion" class="red lighten-1" block elevation="7">
-                    <h2 class="font-weight-light white--text">Cerrar sesión</h2>
-                </v-btn>
 
             </v-col>
         </v-card>
@@ -157,10 +152,6 @@ export default {
         deseleccionarTrack(){
             this.peticionSeleccionada = false;
             this.peticion = null;
-        },
-        cerrarSesion(){
-            /*TODO: guardar en la base de datos la última canción reproducida*/
-            this.$router.push({name: 'Login'});
         }
     },
     beforeDestroy() {

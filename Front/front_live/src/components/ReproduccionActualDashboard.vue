@@ -56,7 +56,7 @@
 
                     <!-- Items sugeridos -->
                     <v-list>
-                        <v-list-item link :disabled="item.titulo == undefined" @click="seleccionarTrack(item)" v-for="(item,index) in resultadosBusqueda" :key="index">
+                        <v-list-item link :disabled="item.titulo == undefined" @click="seleccionarTrack(item, false)" v-for="(item,index) in resultadosBusqueda" :key="index">
                             <v-list-item-content>
                                 <v-list-item-title>{{item.titulo}}</v-list-item-title>
                                 <v-list-item-subtitle>{{item.artista}}</v-list-item-subtitle>
@@ -121,7 +121,7 @@ export default {
                 }
             }
         },
-        seleccionarTrack(item){
+        seleccionarTrack(item, firstTime){
             this.cancionSeleccionada = item;
             this.dialog = false;
             this.isCancionSeleccionada = true;
@@ -130,7 +130,9 @@ export default {
                 this.audio = new Audio(this.cancionSeleccionada.preview);
             }
 
-            /*this.actualizarUltimaReproduccion*/;
+            if(firstTime == false){
+                this.actualizarUltimaReproduccion;
+            }
         },
         activarDialogo(){
             this.dialog = true;
@@ -161,21 +163,49 @@ export default {
                     usuario: this.getUsuario
                 })
                 .then(response => {
-                    if(JSON.stringify(response.data) != JSON.stringify({msg: 'Vacio'})){
-                        this.seleccionarTrack(response.data);
+                    if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                        this.textoSnackbar = "Ocurió un error al intentar recuperar la útlima reproducción";
+                        this.snackbar = true;
+                    }else if(JSON.stringify(response.data) != JSON.stringify({msg: 'Vacio'})){
+                        this.seleccionarTrack(response.data, true);
                     }
                 })
                 .catch(error => {
+                    this.textoSnackbar = "Ocurió un error al intentar recuperar la útlima reproducción";
+                    this.snackbar = true;
                     console.log(error);
                 })
         },
         actualizarUltimaReproduccion(){
             axios
-                .post('http://localhost:3000/actualizarUltimaReproduccion', {
-                    usuario: this.getUsuario,
-                    idCancion: this.cancionSeleccionada.id
+                .post('http://localhost:3000/eliminarUltimaReproduccion', {
+                    usuario: this.getUsuario
+                })
+                .then(response => {
+                    if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                        this.textoSnackbar = "Ocurrió un error al actualizar la reproducción"
+                        this.snackbar = true;
+                    }
                 })
                 .catch(error => {
+                    this.textoSnackbar = "Ocurió un error al actualizar la reproducción";
+                    this.snackbar = true;
+                    console.log(error)
+                })
+            axios
+                .post('http://localhost:3000/actualizarUltimaReproduccion', {
+                    usuario: this.getUsuario,
+                    idCancion: this.cancionSeleccionada.id.low
+                })
+                .then(response => {
+                    if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                        this.textoSnackbar = "Ocurrió un error al actualizar la reproducción";
+                        this.snackbar = true;
+                    }
+                })
+                .catch(error => {
+                    this.textoSnackbar = "Ocurió un error al actualizar la reproducción";
+                    this.snackbar = true;
                     console.log(error)
                 })
         },

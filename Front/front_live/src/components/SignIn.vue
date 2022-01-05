@@ -12,7 +12,7 @@
                     <h2 class="font-weight-light">Inicia sesión en LIVE!</h2>
                 </v-card-title>
                 <v-card-text>
-                    <v-form @submit.prevent="login">
+                    <v-form @enter="login" @submit.prevent="login">
                         <v-text-field
                             label="Usuario"
                             outlined

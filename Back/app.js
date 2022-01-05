@@ -34,6 +34,27 @@ app.post("/registro", function(req, res) {
 
 });
 
+app.post("/crearNodoDeseo", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user: '" + usuario + "'})" +
+    "MERGE (p)-[:DESIRES]->(s:Song {title: 'Desired Song " + usuario + "'})";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result =>{
+            res.json({msg: 'Correcto'});
+        })
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
 app.post("/login", function(req, res) {
     var usuario = req.body.usuario;
     var password = req.body.password;
@@ -100,22 +121,27 @@ app.post("/actualizarUltimaReproduccion", function(req, res) {
 
     const session = driver.session();
 
-    /*Borrado de la relación anterior,*/
+    query = "MATCH (p:Person {user: '" + usuario + "'}) MATCH (s:Song {id: " + idCancion + "}) MERGE (p)-[:LAST_PLAYED]->(s)";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/eliminarUltimaReproduccion", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
     var query = "MATCH (p:Person {user:'" + usuario + "'})-[r:LAST_PLAYED]->() DELETE r";
 
     const resultPromise = session.run(query);
     resultPromise
-        .then(result =>{
-            /*Creación de la nueva relación*/
-            query = "MATCH (p:Person {user: '" + usuario + "'}) MATCH (s:Song {id: " + idCancion + "}) MERGE (p)-[:LAST_PLAYED]->(s)";
-
-            const otherResultPromise = session.run(query);
-            otherResultPromise
-                .catch(error => {
-                    res.json({msg: 'Error'});
-                    console.log(error);
-                });
-        })
         .catch(error => {
             res.json({msg: 'Error'});
             console.log(error);

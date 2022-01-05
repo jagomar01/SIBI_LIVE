@@ -29,12 +29,21 @@ export default new Vuex.Store({
         cover: "https://i.scdn.co/image/ab67616d00001e029cfe80c0c05ce104f7bab18e",
         button: false
       }
-    ]
+    ],
+    usuario: ""
   },
   mutations: {
+    cambiarUsuario(state, payload){
+      state.usuario = payload;
+    }
   },
   actions: {
   },
   modules: {
+  },
+  getters: {
+    getUsuario(state){
+      return state.usuario;
+    }
   }
 })

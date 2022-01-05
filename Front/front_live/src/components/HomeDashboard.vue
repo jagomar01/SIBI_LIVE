@@ -20,9 +20,6 @@ import ReproduccionActualDashboard from '../components/ReproduccionActualDashboa
 export default {
 
     name: 'HomeDashboard',
-    props: {
-        usuario: String
-    },
 
     data() {
         return {

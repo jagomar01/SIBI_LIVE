@@ -5,7 +5,7 @@
             <v-card-title>
                 <h2 class="font-weight-light">Reproducción actual</h2>
                 <v-spacer></v-spacer>
-                <v-btn @click="dialog = true" fab icon><v-icon>mdi-plus</v-icon></v-btn>
+                <v-btn @click="activarDialogo()" fab icon><v-icon>mdi-plus</v-icon></v-btn>
             </v-card-title>
             <v-card-text v-if="!isCancionSeleccionada">
                 Comienza añadiendo una canción
@@ -22,10 +22,10 @@
                                 <v-card-subtitle>
                                     {{cancionSeleccionada.artista}}
                                     <br>
-                                    {{cancionSeleccionada.bpm}} BPM
+                                    {{cancionSeleccionada.bpm}} BPM - {{cancionSeleccionada.genero}}
                                 </v-card-subtitle>
                                 <v-btn fab icon @click="alterarReproduccion()">
-                                    <v-icon>{{cancionSeleccionada.button ? 'mdi-pause' : 'mdi-play'}}</v-icon>
+                                    <v-icon>{{botonPlay ? 'mdi-pause' : 'mdi-play'}}</v-icon>
                                 </v-btn>
                             </div>
 
@@ -48,7 +48,7 @@
                     <br>
                     <!-- Cuadro de búsqueda -->
                     <v-text-field
-                        label="Introducir título"
+                        label="Introducir título o artista"
                         outlined
                         clearable
                         v-model="busqueda"
@@ -56,7 +56,7 @@
 
                     <!-- Items sugeridos -->
                     <v-list>
-                        <v-list-item @click="seleccionarTrack(item)" link v-for="(item,index) in buscar" :key="index">
+                        <v-list-item link :disabled="item.titulo == undefined" @click="seleccionarTrack(item)" v-for="(item,index) in resultadosBusqueda" :key="index">
                             <v-list-item-content>
                                 <v-list-item-title>{{item.titulo}}</v-list-item-title>
                                 <v-list-item-subtitle>{{item.artista}}</v-list-item-subtitle>
@@ -68,11 +68,22 @@
             </v-card>
         </v-dialog>
 
+        <!-- Snackbar advertencia -->
+        <v-snackbar v-model="snackbar" class="d-flex">
+            {{ textoSnackbar }}
+            <v-btn color="white" fab icon @click="snackbar = false">
+                <v-icon>mdi-close</v-icon>
+            </v-btn>
+        </v-snackbar>
+
     </v-col>
 </template>
 
 <script>
 import { mapState } from 'vuex'
+import { mapGetters } from 'vuex'
+
+const axios = require('axios');
 
 export default {
     name: 'ReproduccionActualDashboard',
@@ -82,33 +93,100 @@ export default {
             /*Variables relacionadas con el cuadro de busqueda*/
             busqueda: null,
             dialog: false,
+            resultadosBusqueda: this.itemsProvisionales,
 
             /*Variables relacionadas con la tarjeta de selección*/
             isCancionSeleccionada: false,
-            cancionSeleccionada: null
+            cancionSeleccionada: null,
+            botonPlay: false,
+            audio: null,
+
+            /*Variables relacionadas con la snackbar*/
+            snackbar: false,
+            textoSnackbar: ""
         }
     },
     methods: {
         alterarReproduccion(){
-            this.cancionSeleccionada.button = !this.cancionSeleccionada.button;
+            if(this.cancionSeleccionada.preview == 'null'){
+                this.textoSnackbar = 'Lo sentimos, no hay disponible una muestra de esta canción';
+                this.snackbar = true;
+            }else{
+                this.botonPlay = !this.botonPlay;
+    
+                if(this.botonPlay == false){
+                    this.audio.pause();
+                }else{
+                    this.audio.play();
+                }
+            }
         },
         seleccionarTrack(item){
             this.cancionSeleccionada = item;
             this.dialog = false;
             this.isCancionSeleccionada = true;
+
+            if(this.cancionSeleccionada.preview != 'null'){
+                this.audio = new Audio(this.cancionSeleccionada.preview);
+            }
+
+            /*this.actualizarUltimaReproduccion*/;
+        },
+        activarDialogo(){
+            this.dialog = true;
+
+            if(this.botonPlay == true){
+                this.alterarReproduccion();
+            }
         }
     },
     computed:{
         buscar(){
-            if(this.busqueda){
-                return this.itemsProvisionales.filter(item => 
-                {return this.busqueda.toLowerCase().split(' ').every(v => item.titulo.toLowerCase().includes(v))
+            axios
+                .post('http://localhost:3000/buscar' , {
+                    termino: this.busqueda
                 })
-            }else{
-                return this.itemsProvisionales;
-            }
+                .then(response => {
+                    this.resultadosBusqueda = response.data;
+                })
+                .catch(error => {
+                    this.textoSnackbar = "Ocurió un error. Intenta buscar de nuevo.";
+                    this.snackbar = true;
+                    console.log(error);
+                })
         },
-        ...mapState(['itemsProvisionales'])
+        recuperarReproduccion(){
+            axios
+                .post('http://localhost:3000/obtenerUltimaReproduccion' , {
+                    usuario: this.getUsuario
+                })
+                .then(response => {
+                    if(JSON.stringify(response.data) != JSON.stringify({msg: 'Vacio'})){
+                        this.seleccionarTrack(response.data);
+                    }
+                })
+                .catch(error => {
+                    console.log(error);
+                })
+        },
+        actualizarUltimaReproduccion(){
+            axios
+                .post('http://localhost:3000/actualizarUltimaReproduccion', {
+                    usuario: this.getUsuario,
+                    idCancion: this.cancionSeleccionada.id
+                })
+                .catch(error => {
+                    console.log(error)
+                })
+        },
+        ...mapState(['itemsProvisionales']),
+        ...mapGetters(['getUsuario'])
+    },
+    beforeUpdate() {
+        this.buscar;
+    },
+    created() {
+        this.recuperarReproduccion;
     }
 
 }

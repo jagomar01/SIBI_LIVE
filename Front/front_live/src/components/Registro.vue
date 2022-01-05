@@ -59,6 +59,8 @@
 </template>
 
 <script>
+import { mapMutations } from 'vuex'
+
 export default {
     name: 'SignIn',
 
@@ -94,19 +96,24 @@ export default {
                     })
                     .then((response) => {
                         if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
-                            this.textoSnackbar ="Se produjo un error. Revisa los datos e inténtalo de nuevo";
+                            this.textoSnackbar = "Se produjo un error. Revisa los datos e inténtalo de nuevo";
                             this.snackbar = true;
                             this.limpiarFormulario();
                         }else{
-                            this.$router.push({name: 'Dashboard', params: {usuario: this.usuario}});
+                            this.cambiarUsuario(this.usuario);
+                            this.$router.push({name: 'Dashboard'});
                             this.limpiarFormulario();
                         }
                     })
                     .catch(error =>{
+                        this.textoSnackbar = "Se produjo un error. Revisa los datos e inténtalo de nuevo";
+                        this.snackbar = true;
+                        this.limpiarFormulario();
                         console.log(error);
                     })
             }
-        }
+        },
+        ...mapMutations(['cambiarUsuario'])
     }
 
 }

@@ -51,6 +51,8 @@
 </template>
 
 <script>
+import { mapMutations } from 'vuex'
+
 const axios = require('axios');
 
 export default {
@@ -85,11 +87,15 @@ export default {
                             this.snackbar = true;
                             this.limpiarFormulario();
                         }else{
-                            this.$router.push({name: 'Dashboard', params: {usuario: this.usuario}});
+                            this.cambiarUsuario(this.usuario);
+                            this.$router.push({name: 'Dashboard'});
                             this.limpiarFormulario();
                         }
                     })
                     .catch(error =>{
+                        this.textoSnackbar = "Se produjo un error. Revisa los datos e inténtalo de nuevo";
+                        this.snackbar = true;
+                        this.limpiarFormulario();
                         console.log(error);
                     })
             }
@@ -97,7 +103,8 @@ export default {
         limpiarFormulario(){
             this.usuario = "";
             this.password = "";
-        }
+        },
+        ...mapMutations(['cambiarUsuario'])
     },
 }
 </script>

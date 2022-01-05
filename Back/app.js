@@ -48,7 +48,6 @@ app.post("/login", function(req, res) {
             if(result.records.length == 0){
                 res.json({msg: 'Incorrecto'});
             }else{
-                /*Mayor tratamiento: devolver ultima canción reproducida*/
                 res.json({msg: 'Correcto'});
             }
         })
@@ -59,6 +58,113 @@ app.post("/login", function(req, res) {
         .then(() => session.close());
 
 });
+
+app.post("/obtenerUltimaReproduccion", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person)-[:LAST_PLAYED]-(s:Song) WHERE p.user='" + usuario + 
+    "' RETURN s.id, s.title, s.artist, toInteger(s.bpm), s.genre, s.cover, s.preview";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result =>{
+            if(result.records.length == 0){
+                res.json({msg: 'Vacio'});
+            }else{
+                var cancion = {
+                    id: result.records[0]._fields[0],
+                    titulo: result.records[0]._fields[1],
+                    artista: result.records[0]._fields[2],
+                    bpm: result.records[0]._fields[3].low,
+                    genero: result.records[0]._fields[4],
+                    cover: result.records[0]._fields[5],
+                    preview: result.records[0]._fields[6]
+                };
+
+                res.send(cancion);
+            }
+        })
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/actualizarUltimaReproduccion", function(req, res) {
+    var usuario = req.body.usuario;
+    var idCancion = req.body.idCancion;
+
+    const session = driver.session();
+
+    /*Borrado de la relación anterior,*/
+    var query = "MATCH (p:Person {user:'" + usuario + "'})-[r:LAST_PLAYED]->() DELETE r";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result =>{
+            /*Creación de la nueva relación*/
+            query = "MATCH (p:Person {user: '" + usuario + "'}) MATCH (s:Song {id: " + idCancion + "}) MERGE (p)-[:LAST_PLAYED]->(s)";
+
+            const otherResultPromise = session.run(query);
+            otherResultPromise
+                .catch(error => {
+                    res.json({msg: 'Error'});
+                    console.log(error);
+                });
+        })
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/buscar", function(req, res) {
+    var termino = req.body.termino;
+
+    const session = driver.session();
+
+    var query = "MATCH (s:Song) WHERE toLower(s.title) CONTAINS '" + termino + 
+    "' OR toLower(s.artist) CONTAINS '" + termino + "' RETURN s.id, s.title, s.artist, toInteger(s.bpm), s.genre, s.cover, s.preview LIMIT 5";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result =>{
+            if(result.records.length == 0){
+                res.json({msg: 'Vacio'});
+            }else{
+                var respuesta = [];
+
+                for(var i=0; i<result.records.length; i++){
+                    var cancion = {
+                        id: result.records[i]._fields[0],
+                        titulo: result.records[i]._fields[1],
+                        artista: result.records[i]._fields[2],
+                        bpm: result.records[i]._fields[3].low,
+                        genero: result.records[i]._fields[4],
+                        cover: result.records[i]._fields[5],
+                        preview: result.records[i]._fields[6]
+                    };
+    
+                    respuesta.push(cancion);
+                }
+
+                res.send(respuesta);
+            }
+        })
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
 
 app.listen(3000, function() {
     console.log("Backend escuchando en el puerto 3000");

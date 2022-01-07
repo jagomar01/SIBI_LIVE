@@ -10,7 +10,7 @@
             </v-row>
         </v-container>
 
-        <v-dialog v-model="dialogoInicial" width="500">
+        <v-dialog v-model="dialogoInicial" width="500" persistent>
             <v-card class="pl-1 pt-1 pr-1">
                 <v-card-title>
                     <h2 class="font-weight-light">Establecer fechas</h2>

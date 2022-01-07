@@ -155,37 +155,7 @@ export default {
                 return this.itemsProvisionales;
             }
         },
-        ...mapState(['itemsProvisionales']),
-        ...mapGetters(['getUsuario', 'getSetup'])
-    },
-    methods: {
-        seleccionarTrack(item){
-            this.peticionSeleccionada = true;
-            this.dialog = false;
-            this.peticion = item;
-        },
-        deseleccionarTrack(){
-            this.peticionSeleccionada = false;
-            this.peticion = null;
-        }
-    },
-    beforeDestroy() {
-        clearInterval(this.interval)
-    },
-    created(){
-        /*Actualizar la hora cada 1000 ms (1 segundo)*/
-        this.interval = setInterval(() => {
-            /*Formato de hora*/
-            this.time = Intl.DateTimeFormat(navigator.language, {
-                hour: 'numeric',
-                minute: 'numeric',
-                second: 'numeric'
-            }).format();
-
-        }, 1000);
-
-        /*Actualizar la energia en modo automático cada 30000 ms (medio minuto)*/
-        this.intervalBis = setInterval(() => {
+        actualizarEnergia(){
             if(this.checkboxMode == true && this.getSetup == true){
                 axios
                     .post('http://localhost:3000/obtenerEnergia', {
@@ -205,7 +175,39 @@ export default {
                         console.log(error);
                     })
             }
+        },
+        ...mapState(['itemsProvisionales']),
+        ...mapGetters(['getUsuario', 'getSetup'])
+    },
+    methods: {
+        seleccionarTrack(item){
+            this.peticionSeleccionada = true;
+            this.dialog = false;
+            this.peticion = item;
+        },
+        deseleccionarTrack(){
+            this.peticionSeleccionada = false;
+            this.peticion = null;
+        }
+    },
+    beforeDestroy() {
+        clearInterval(this.interval)
+    },
+    created(){
+        /*Actualiza la hora cada 1000 ms (1 segundo)*/
+        this.interval = setInterval(() => {
+            /*Formato de hora*/
+            this.time = Intl.DateTimeFormat(navigator.language, {
+                hour: 'numeric',
+                minute: 'numeric',
+                second: 'numeric'
+            }).format();
 
+        }, 1000);
+
+        /*Actualiza la energia en modo automático cada 30000 ms (medio minuto)*/
+        this.intervalBis = setInterval(() => {
+            this.actualizarEnergia();
         }, 30000);
     }
 

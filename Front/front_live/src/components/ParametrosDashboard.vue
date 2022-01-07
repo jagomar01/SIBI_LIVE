@@ -102,11 +102,20 @@
             </v-card>
         </v-dialog>
 
+        <!-- Snackbar advertencia -->
+        <v-snackbar v-model="snackbar" class="d-flex">
+            {{ textoSnackbar }}
+            <v-btn color="white" fab icon @click="snackbar = false">
+                <v-icon>mdi-close</v-icon>
+            </v-btn>
+        </v-snackbar>
+
     </v-col>
 </template>
 
 <script>
 import { mapState } from 'vuex'
+import { mapGetters } from 'vuex'
 
 export default {
     name: 'ParametrosDashboard',
@@ -121,6 +130,7 @@ export default {
             porcentajeEnergia: 0,
             checkboxMode: true,
             checkboxGenero: false,
+            intervalBis: null,
 
             /*Variables relacionadas con la tarjeta de peticiones*/
             peticion: null,
@@ -128,7 +138,11 @@ export default {
 
             /*Variables relacionadas con el cuadro de búsqueda*/
             dialog: false,
-            busqueda: null
+            busqueda: null,
+
+            /*Variables relacionadas con la snackbar*/
+            snackbar: false,
+            textoSnackbar: ""
         }
     },
     computed:{
@@ -141,7 +155,8 @@ export default {
                 return this.itemsProvisionales;
             }
         },
-        ...mapState(['itemsProvisionales'])
+        ...mapState(['itemsProvisionales']),
+        ...mapGetters(['getUsuario', 'getSetup'])
     },
     methods: {
         seleccionarTrack(item){
@@ -165,8 +180,33 @@ export default {
                 hour: 'numeric',
                 minute: 'numeric',
                 second: 'numeric'
-            }).format()
-        }, 1000)
+            }).format();
+
+        }, 1000);
+
+        /*Actualizar la energia en modo automático cada 30000 ms (medio minuto)*/
+        this.intervalBis = setInterval(() => {
+            if(this.checkboxMode == true && this.getSetup == true){
+                axios
+                    .post('http://localhost:3000/obtenerEnergia', {
+                        usuario: this.getUsuario
+                    })
+                    .then(response => {
+                        if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                            this.textoSnackbar = "Ocurrió un error al actualizar la energía";
+                            this.snackbar = true;
+                        }else{
+                            this.porcentajeEnergia = parseInt(response.data.value);
+                        }
+                    })
+                    .catch(error => {
+                        this.textoSnackbar = "Ocurrió un error al actualizar la energía";
+                        this.snackbar = true;
+                        console.log(error);
+                    })
+            }
+
+        }, 30000);
     }
 
 }

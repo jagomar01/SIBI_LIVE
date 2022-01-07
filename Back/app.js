@@ -1,6 +1,7 @@
 const express = require('express');
 const app = express();
 const bodyParser = require('body-parser');
+const nerdamer = require("nerdamer/all.min");
 var cors = require('cors');
 
 const neo4j = require('neo4j-driver');
@@ -40,7 +41,8 @@ app.post("/crearNodoDeseo", function(req, res) {
     const session = driver.session();
 
     var query = "MATCH (p:Person {user: '" + usuario + "'})" +
-    "MERGE (p)-[:DESIRES]->(s:Song {title: 'Desired Song " + usuario + "'})";
+    "MERGE (p)-[:DESIRES]->(s:Song {title: 'Desired Song " + usuario + 
+    "'}) ON CREATE SET s.genre='null', s.energy='auto'";
 
     const resultPromise = session.run(query);
     resultPromise
@@ -115,6 +117,55 @@ app.post("/obtenerUltimaReproduccion", function(req, res) {
 
 });
 
+app.post("/obtenerPeticion", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person)-[:WAS_ASKED]->(s:Song) WHERE p.user='" + usuario + 
+    "' RETURN s.id, s.title, s.artist";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result =>{
+            if(result.records.length == 0){
+                res.json({msg: 'Vacio'});
+            }else{
+                var cancion = {
+                    id: result.records[0]._fields[0],
+                    titulo: result.records[0]._fields[1],
+                    artista: result.records[0]._fields[2]
+                };
+
+                res.send(cancion);
+            }
+        })
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/actualizarPetición", function(req, res) {
+    var usuario = req.body.usuario;
+    var idCancion = req.body.idCancion;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user:'"+ usuario + "'}) MATCH (s:Song {id:" + idCancion + "}) MERGE (p)-[:WAS_ASKED]->(s)"
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
 app.post("/actualizarUltimaReproduccion", function(req, res) {
     var usuario = req.body.usuario;
     var idCancion = req.body.idCancion;
@@ -126,6 +177,23 @@ app.post("/actualizarUltimaReproduccion", function(req, res) {
     const resultPromise = session.run(query);
     resultPromise
         .catch( error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/eliminarPeticion", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user:'" + usuario + "'})-[r:WAS_ASKED]->() DELETE r";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch(error => {
             res.json({msg: 'Error'});
             console.log(error);
         })
@@ -149,6 +217,135 @@ app.post("/eliminarUltimaReproduccion", function(req, res) {
         .then(() => session.close());
 
 });
+
+app.post("/establecerEnergia", function(req, res) {
+    var usuario = req.body.usuario;
+    var energia = req.body.energia;
+
+    const session = driver.session();
+
+    var query = "MATCH (s:Song {title: 'Desired Song " + usuario + "'}) SET s.energy=" + energia;
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/obtenerEnergia", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user:'" + usuario + "'})-[:DESIRES]->(s:Song) RETURN s.energy, toFloat(p.timeBegin), toFloat(p.timeEnd)";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(result => {
+            var energy = result.records[0]._fields[0];
+
+            if(energy == 'auto'){
+                var momentoActual = new Date().getTime();
+                var momentoInicio =  result.records[0]._fields[1];
+                var momentoFin = result.records[0]._fields[2];
+
+                var ecuacion = nerdamer.solveEquations([(momentoInicio + 'a + b = 0'),(momentoFin + 'a + b = 1')]).toString();
+                var a = parseFloat(ecuacion.split(',')[1]);
+                var b = parseFloat(ecuacion.split(',')[3]);
+
+                var momentoNormalizado = momentoActual*a + b;
+                energy = {value: (240*momentoNormalizado) - (240*momentoNormalizado*momentoNormalizado) + 30};
+            }
+
+            res.send(energy);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/establecerFechasInicioYFin", function(req, res) {
+    var usuario = req.body.usuario;
+    var momentoInicio = req.body.momentoInicio;
+    var momentoFin = req.body.momentoFin;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user: '" + usuario + "'}) SET p.timeBegin=" + momentoInicio + ", p.timeEnd=" + momentoFin;
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result => {
+            res.json({msg: 'Correcto'});
+        })
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+
+});
+
+app.post("/establecerGenero", function(req, res) {
+    var usuario = req.body.usuario;
+    var genero = req.body.genero;
+
+    const session = driver.session();
+    
+    if(genero == 'keep'){
+        var query = "MATCH (p:Person {user: '" + usuario + "'})-[:LAST_PLAYED]->(s:Song) RETURN s.genre";
+
+        const resultPromise = session.run(query);
+        resultPromise
+            .catch(error => {
+                res.json({msg: 'Error'});
+                console.log(error);
+            })
+            .then(result => {
+                genero = result.records[0]._fields[0];
+            })
+    }
+
+    var secondQuery = "MATCH (s:Song {title: 'Desired Song " + usuario + "'}) SET s.genre='" + genero + "'";
+
+    const secondResultPromise = session.run(secondQuery);
+    secondResultPromise
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => {
+            session.close();
+        });
+});
+
+app.post("/obtenerGenero", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (s:Song {title: 'Desired Song " + usuario + "'}) RETURN s.genre";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(result => {
+            var genero = result.records[0]._fields[0];
+            res.send(genero);
+        })
+        .then(() => session.close());
+});
+
 
 app.post("/buscar", function(req, res) {
     var termino = req.body.termino;
@@ -190,7 +387,6 @@ app.post("/buscar", function(req, res) {
         .then(() => session.close());
 
 });
-
 
 app.listen(3000, function() {
     console.log("Backend escuchando en el puerto 3000");

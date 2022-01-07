@@ -80,7 +80,6 @@
 </template>
 
 <script>
-import { mapState } from 'vuex'
 import { mapGetters } from 'vuex'
 
 const axios = require('axios');
@@ -209,7 +208,6 @@ export default {
                     console.log(error)
                 })
         },
-        ...mapState(['itemsProvisionales']),
         ...mapGetters(['getUsuario'])
     },
     beforeUpdate() {

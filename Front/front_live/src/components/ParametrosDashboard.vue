@@ -84,7 +84,7 @@
                     <br>
                     <!-- Cuadro de búsqueda -->
                     <v-text-field
-                        label="Introducir título"
+                        label="Introducir título o artista"
                         outlined
                         clearable
                         v-model="busqueda"

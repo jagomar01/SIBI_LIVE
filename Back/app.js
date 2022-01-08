@@ -352,7 +352,7 @@ app.post("/borrarHistorialReproduccion", function(req, res) {
 
     const session = driver.session();
 
-    var query = "MATCH (p:Person {user: '" + usuario + "'})-[r:PLAYED]->() DELETE r";
+    var query = "MATCH (p:Person {user: '" + usuario + "'})-[r:PLAYED]->(s) WHERE NOT (p)-[:LAST_PLAYED]-(s) DELETE r";
 
     const resultPromise = session.run(query);
     resultPromise
@@ -404,6 +404,331 @@ app.post("/buscar", function(req, res) {
         .then(() => session.close());
 
 });
+
+app.post("/obtenerRecomendaciones", function(req,res) {
+    var usuario = req.body.usuario;
+
+    const firstPhaseSession = driver.session();
+
+    /*Fase 1: Comprobación de si existen peticiones*/
+    var firstPhaseQuery = "MATCH (p:Person)-[:WAS_ASKED]->(s:Song) WHERE p.user='" + usuario + "' RETURN s";
+
+    const firstPhaseResultPromise = firstPhaseSession.run(firstPhaseQuery);
+    firstPhaseResultPromise
+        .then(result => {
+            /*Si no hay peticiones, se ejecuta el itinerario de recomendación basado en reproducción actual (non-petition-driven)*/
+            if(result.records.length == 0){
+                const secondPhaseSession = driver.session();
+
+                /*Fase 2: obtención de información sobre la recomendación actual y los parámetros*/
+                var secondPhaseQuery = "MATCH (s:Song)<-[:LAST_PLAYED]-(p:Person {user:'" + usuario + 
+                                    "'})-[:DESIRES]->(d:Song) RETURN s.id, toFloat(s.bpm), s.genre, toFloat(d.energy), d.genre";
+
+                const secondPhaseResultPromise = secondPhaseSession.run(secondPhaseQuery);
+                secondPhaseResultPromise
+                    .then(result => {
+                        /*Si no se devuelven los 6 datos, se interrumpe el proceso*/
+                        if(result.records.length == 0){
+                            res.json({msg:'Incompleto'});
+                        }else{
+                            var idUltimo = result.records[0]._fields[0];
+                            var bpmUltimo = result.records[0]._fields[1];
+                            var generoUltimo = result.records[0]._fields[2];
+                            var energiaPreferencia = result.records[0]._fields[3];
+                            var generoPreferencia = result.records[0]._fields[4];
+
+                            /*Fase 3: filtrado según preferencias de genero*/
+                            if(generoPreferencia == 'null'){
+                                /*Fase 3.a: no se ha seleecionado manterner el género*/
+                                const bpmSession = driver.session();
+
+                                /*Filtrado por bpm, con un margen de +-5% (y por canciones que no hayan sido reproducidas)*/
+                                var bpmQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + 
+                                            (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                const bpmResultPromise = bpmSession.run(bpmQuery);
+                                bpmResultPromise
+                                    .then(result => {
+                                        if(result.records.length == 0){
+                                            /*Si no hay ninguna canción, se finaliza*/
+                                            res.json({msg: 'Vacio bpm'});
+                                        }else if(result.records.length <= 3){
+                                            /*Si hay de 1 a 3 canciones, se devuelven*/
+                                            var respuesta = [];
+
+                                            for(var i=0; i<result.records.length; i++){
+                                                var cancion = {
+                                                    id: result.records[i]._fields[0],
+                                                    titulo: result.records[i]._fields[1],
+                                                    artista: result.records[i]._fields[2],
+                                                    bpm: result.records[i]._fields[3],
+                                                    genero: result.records[i]._fields[4],
+                                                    cover: result.records[i]._fields[5],
+                                                    preview: result.records[i]._fields[6]
+                                                };
+                                
+                                                respuesta.push(cancion);
+                                            }
+
+                                            res.send(respuesta);
+                                        }else{
+                                            /*Si sigue habiendo más de 3 canciones, se filtra por energía, con un margen de +-10%*/
+                                            const energySession = driver.session();
+
+                                            var energyQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) +
+                                                             " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + 
+                                                            " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                            const energyResultPremise = energySession.run(energyQuery);
+                                            energyResultPremise
+                                                .then(result => {
+                                                    if(result.records.length == 0){
+                                                        /*Si no hay ninguna canción, se finaliza*/
+                                                        res.json({msg: 'Vacio energia'});
+                                                    }else if(result.records.length <= 3){
+                                                        /*Si hay de 1 a 3 canciones, se devuelven*/
+                                                        var respuesta = [];
+
+                                                        for(var i=0; i<result.records.length; i++){
+                                                            var cancion = {
+                                                                id: result.records[i]._fields[0],
+                                                                titulo: result.records[i]._fields[1],
+                                                                artista: result.records[i]._fields[2],
+                                                                bpm: result.records[i]._fields[3],
+                                                                genero: result.records[i]._fields[4],
+                                                                cover: result.records[i]._fields[5],
+                                                                preview: result.records[i]._fields[6]
+                                                            };
+                                            
+                                                            respuesta.push(cancion);
+                                                        }
+            
+                                                        res.send(respuesta);
+                                                    }else{
+                                                        /*Si sigue habiendo más de 3 canciones, se ordenan por puntuación en PageRank personalizado*/
+                                                        const pageRankSession = driver.session();
+
+                                                        var pageRankQuery = "MATCH (s:Song {id:" + idUltimo + 
+                                                                        "}) CALL gds.pageRank.stream('grafoCanciones', { maxIterations: 20," +
+                                                                        " dampingFactor: 0.85, sourceNodes: [s] }) YIELD nodeId, score" + 
+                                                                        " WITH gds.util.asNode(nodeId) as s, score MATCH (p:Person {user: '" + usuario +
+                                                                        "'}) WHERE NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + 
+                                                                        " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + 
+                                                                        " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview ORDER BY score DESC LIMIT 3";
+                                                        const pageRankResultPremise = pageRankSession.run(pageRankQuery);
+                                                        pageRankResultPremise
+                                                            .then(result => {
+                                                                var respuesta = [];
+
+                                                                for(var i=0; i<result.records.length; i++){
+                                                                    var cancion = {
+                                                                        id: result.records[i]._fields[0],
+                                                                        titulo: result.records[i]._fields[1],
+                                                                        artista: result.records[i]._fields[2],
+                                                                        bpm: result.records[i]._fields[3],
+                                                                        genero: result.records[i]._fields[4],
+                                                                        cover: result.records[i]._fields[5],
+                                                                        preview: result.records[i]._fields[6]
+                                                                    };
+                                                                    
+                                                                    respuesta.push(cancion);
+                                                                }
+                    
+                                                                res.send(respuesta);
+                                                            })
+                                                            .catch(error => {
+                                                                res.json({msg: 'Error'});
+                                                                console.log(error);
+                                                            })
+                                                            .then(() => pageRankSession.close());
+                                                    }
+                                                })
+                                                .catch(error => {
+                                                    res.json({msg: 'Error'});
+                                                    console.log(error);
+                                                })
+                                                .then(() => energySession.close());
+                                        }
+                                    })
+                                    .catch(error => {
+                                        res.json({msg: 'Error'});
+                                        console.log(error);
+                                    })
+                                    .then(() => bpmSession.close());
+
+                            }else{
+                                /*Fase 3.b: sí se ha seleccionado mantener el género*/
+                                const genreSession = driver.session();
+                                
+                                /*Se filtra por genero (y por canciones que no hayan sido reproducidas)*/
+                                var genreQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE s.genre='" + generoUltimo + 
+                                                "' AND NOT (p)-[:PLAYED]->(s) RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                const genreResultPromise = genreSession.run(genreQuery);
+                                genreResultPromise
+                                    .then(result => {
+                                        if(result.records.length == 0){
+                                            /*Si no hay ninguna canción, se finaliza*/
+                                            res.json({msg: 'Vacio genero'});
+                                        }else if (result.records.length <= 3){
+                                            /*Si hay de 1 a 3 canciones, se devuelven*/
+                                            var respuesta = [];
+
+                                            for(var i=0; i<result.records.length; i++){
+                                                var cancion = {
+                                                    id: result.records[i]._fields[0],
+                                                    titulo: result.records[i]._fields[1],
+                                                    artista: result.records[i]._fields[2],
+                                                    bpm: result.records[i]._fields[3],
+                                                    genero: result.records[i]._fields[4],
+                                                    cover: result.records[i]._fields[5],
+                                                    preview: result.records[i]._fields[6]
+                                                };
+                                
+                                                respuesta.push(cancion);
+                                            }
+
+                                            res.send(respuesta);
+                                        }else{
+                                            /*Si hay más de 3 canciones, se continúa filtrando por bpm, con un margen de +-5%*/
+                                            const bpmSession = driver.session();
+
+                                            var bpmQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE s.genre='" + generoUltimo +
+                                                        "' AND NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + 
+                                                        (bpmUltimo + bpmUltimo*0.05) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                            const bpmResultPromise = bpmSession.run(bpmQuery);
+                                            bpmResultPromise
+                                                .then(result => {
+                                                    if(result.records.length == 0){
+                                                        /*Si no hay ninguna canción, se finaliza*/
+                                                        res.json({msg: 'Vacio bpm'});
+                                                    }else if(result.records.length <= 3){
+                                                        /*Si hay de 1 a 3 canciones, se devuelven*/
+                                                        var respuesta = [];
+
+                                                        for(var i=0; i<result.records.length; i++){
+                                                            var cancion = {
+                                                                id: result.records[i]._fields[0],
+                                                                titulo: result.records[i]._fields[1],
+                                                                artista: result.records[i]._fields[2],
+                                                                bpm: result.records[i]._fields[3],
+                                                                genero: result.records[i]._fields[4],
+                                                                cover: result.records[i]._fields[5],
+                                                                preview: result.records[i]._fields[6]
+                                                            };
+                                            
+                                                            respuesta.push(cancion);
+                                                        }
+            
+                                                        res.send(respuesta);
+                                                    }else{
+                                                        /*Si sigue habiendo más de 3 canciones, se filtra por energía, con un margen de +-10%*/
+                                                        const energySession = driver.session();
+
+                                                        var energyQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE s.genre='" + generoUltimo +
+                                                                        "' AND NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + 
+                                                                        (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + 
+                                                                        " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                        const energyResultPremise = energySession.run(energyQuery);
+                                                        energyResultPremise
+                                                            .then(result => {
+                                                                if(result.records.length == 0){
+                                                                    /*Si no hay ninguna canción, se finaliza*/
+                                                                    res.json({msg: 'Vacio energia'});
+                                                                }else if(result.records.length <= 3){
+                                                                    /*Si hay de 1 a 3 canciones, se devuelven*/
+                                                                    var respuesta = [];
+
+                                                                    for(var i=0; i<result.records.length; i++){
+                                                                        var cancion = {
+                                                                            id: result.records[i]._fields[0],
+                                                                            titulo: result.records[i]._fields[1],
+                                                                            artista: result.records[i]._fields[2],
+                                                                            bpm: result.records[i]._fields[3],
+                                                                            genero: result.records[i]._fields[4],
+                                                                            cover: result.records[i]._fields[5],
+                                                                            preview: result.records[i]._fields[6]
+                                                                        };
+                                                        
+                                                                        respuesta.push(cancion);
+                                                                    }
+                        
+                                                                    res.send(respuesta);
+                                                                }else{
+                                                                    /*Si sigue habiendo más de 3 canciones, se ordenan por puntuación en PageRank personalizado*/
+                                                                    const pageRankSession = driver.session();
+
+                                                                    var pageRankQuery = "MATCH (s:Song {id:" + idUltimo + 
+                                                                                    "}) CALL gds.pageRank.stream('grafoCanciones', { maxIterations: 20," +
+                                                                                    " dampingFactor: 0.85, sourceNodes: [s] }) YIELD nodeId, score" + 
+                                                                                    " WITH gds.util.asNode(nodeId) as s, score MATCH (p:Person {user: '" + usuario +
+                                                                                    "'}) WHERE s.genre='" + generoUltimo + "' AND NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + 
+                                                                                    (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + 
+                                                                                    " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview ORDER BY score DESC LIMIT 3";
+                                                                    const pageRankResultPremise = pageRankSession.run(pageRankQuery);
+                                                                    pageRankResultPremise
+                                                                        .then(result =>{
+                                                                            var respuesta = [];
+
+                                                                            for(var i=0; i<result.records.length; i++){
+                                                                                var cancion = {
+                                                                                    id: result.records[i]._fields[0],
+                                                                                    titulo: result.records[i]._fields[1],
+                                                                                    artista: result.records[i]._fields[2],
+                                                                                    bpm: result.records[i]._fields[3],
+                                                                                    genero: result.records[i]._fields[4],
+                                                                                    cover: result.records[i]._fields[5],
+                                                                                    preview: result.records[i]._fields[6]
+                                                                                };
+                                                                                
+                                                                                respuesta.push(cancion);
+                                                                            }
+                                
+                                                                            res.send(respuesta);
+                                                                        })
+                                                                        .catch(error => {
+                                                                            res.json({msg: 'Error'});
+                                                                            console.log(error);
+                                                                        })
+                                                                        .then(() => pageRankSession.close());
+                                                                }
+                                                            })
+                                                            .catch(error => {
+                                                                res.json({msg:'Error'});
+                                                                console.log(error);
+                                                            })
+                                                            .then(() => energySession.close());
+                                                    }
+                                                })
+                                                .catch(error =>{
+                                                    res.json({msg:'Error'});
+                                                    console.log(error);
+                                                })
+                                                .then(() => bpmSession.close()); 
+                                        }
+                                    })
+                                    .catch(error => {
+                                        res.json({msg: 'Error'});
+                                        console.log(error);
+                                    })
+                                    .then(() => genreSession.close());
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        res.json({msg: 'Error'});
+                        console.log(error);
+                    })
+                    .then(() => secondPhaseSession.close());
+
+            }else{
+                /*Si hay peticiones, se ejecuta el itinerario de recomendación basado en peticiones (petition-driven)*/
+                /*TODO*/
+            }
+        })
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => firstPhaseSession.close());
+})
 
 app.listen(3000, function() {
     console.log("Backend escuchando en el puerto 3000");

@@ -8,8 +8,12 @@
                 <v-btn @click="obtenerRecomendaciones()" fab icon><v-icon>mdi-reload</v-icon></v-btn>
             </v-card-title>
 
+            <v-card-text v-if="!hayRecomendaciones">
+                {{textoColumna}}
+            </v-card-text>
+
             <!-- Tarjetas de recomendación -->
-            <v-col v-for="(item, i) in itemsProvisionales" :key="i">
+            <v-col v-else v-for="(item, i) in itemsRecomendaciones" :key="i">
                 <v-card dark :color="listaColores[i]" elevation="7">
                         <div class="d-flex flex-no-wrap justify-space-between">
                             <div>
@@ -32,22 +36,39 @@
                         </div>
                 </v-card>
             </v-col>
-
         </v-card>
+
+        <!-- Snackbar advertencia -->
+        <v-snackbar v-model="snackbar" class="d-flex">
+            {{ textoSnackbar }}
+            <v-btn color="white" fab icon @click="snackbar = false">
+                <v-icon>mdi-close</v-icon>
+            </v-btn>
+        </v-snackbar>
+
     </v-col>
 </template>
 
 <script>
-import { mapState } from 'vuex'
+import { mapGetters } from 'vuex'
+import axios from 'axios';
 
 export default {
     name: 'RecomendacionesDashboard',
 
     data() {
         return {
+            /*Variables relacionadas con las tarjetas de recomendación*/
             listaColores: [
                 "indigo lighten-1", "deep-orange lighten-2", "orange lighten-2"
-            ]
+            ],
+            hayRecomendaciones: false,
+            itemsRecomendaciones: null,
+            textoColumna: "Para obtener recomendaciones, selecciona una canción, ajusta los parámetros y pulsa el botón de recargar situado encima",
+
+            /*Variables relacionadas con la snackbar*/
+            snackbar: false,
+            textoSnackbar: ""
         }
     },
     methods:{
@@ -55,11 +76,22 @@ export default {
             i.button = !i.button;
         },
         obtenerRecomendaciones(){
-            console.log("//TODO");
+            axios
+                .post('http://localhost:3000/obtenerRecomendaciones', {
+                    usuario: this.getUsuario
+                })
+                .then(response => {
+                    console.log(response);
+                })
+                .catch(error => {
+                    this.textoSnackbar = "Ocurrió un error al obtener las recomendaciones";
+                    this.snackbar = true;
+                    console.log(error);
+                })
         }
     },
     computed:{
-        ...mapState(['itemsProvisionales'])
+        ...mapGetters(['getUsuario'])
     }
 
 }

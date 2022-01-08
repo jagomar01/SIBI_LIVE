@@ -151,7 +151,7 @@ export default {
                     this.resultadosBusqueda = response.data;
                 })
                 .catch(error => {
-                    this.textoSnackbar = "Ocurió un error. Intenta buscar de nuevo.";
+                    this.textoSnackbar = "Ocurió un error. Intenta buscar de nuevo";
                     this.snackbar = true;
                     console.log(error);
                 })

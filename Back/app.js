@@ -148,7 +148,7 @@ app.post("/obtenerPeticion", function(req, res) {
 
 });
 
-app.post("/actualizarPetición", function(req, res) {
+app.post("/actualizarPeticion", function(req, res) {
     var usuario = req.body.usuario;
     var idCancion = req.body.idCancion;
 
@@ -173,7 +173,8 @@ app.post("/actualizarUltimaReproduccion", function(req, res) {
 
     const session = driver.session();
 
-    query = "MATCH (p:Person {user: '" + usuario + "'}) MATCH (s:Song {id: " + idCancion + "}) MERGE (p)-[:LAST_PLAYED]->(s)";
+    query = "MATCH (p:Person {user: '" + usuario + "'}) MATCH (s:Song {id: " + idCancion + 
+    "}) MERGE (p)-[:LAST_PLAYED]->(s) MERGE (p)-[:PLAYED]->(s)";
 
     const resultPromise = session.run(query);
     resultPromise
@@ -346,6 +347,22 @@ app.post("/obtenerGenero", function(req, res) {
         .then(() => session.close());
 });
 
+app.post("/borrarHistorialReproduccion", function(req, res) {
+    var usuario = req.body.usuario;
+
+    const session = driver.session();
+
+    var query = "MATCH (p:Person {user: '" + usuario + "'})-[r:PLAYED]->() DELETE r";
+
+    const resultPromise = session.run(query);
+    resultPromise
+        .then(result => res.sendStatus(200))
+        .catch(error => {
+            res.json({msg: 'Error'});
+            console.log(error);
+        })
+        .then(() => session.close());
+});
 
 app.post("/buscar", function(req, res) {
     var termino = req.body.termino;

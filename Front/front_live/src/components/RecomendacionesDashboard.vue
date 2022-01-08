@@ -4,6 +4,8 @@
         <v-card class="pl-1 pt-1 pr-1 pb-1">
             <v-card-title>
                 <h2 class="font-weight-light">Recomendaciones</h2>
+                <v-spacer></v-spacer>
+                <v-btn @click="obtenerRecomendaciones()" fab icon><v-icon>mdi-reload</v-icon></v-btn>
             </v-card-title>
 
             <!-- Tarjetas de recomendación -->
@@ -51,6 +53,9 @@ export default {
     methods:{
         alterarReproduccion(i){
             i.button = !i.button;
+        },
+        obtenerRecomendaciones(){
+            console.log("//TODO");
         }
     },
     computed:{

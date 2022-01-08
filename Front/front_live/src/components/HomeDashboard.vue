@@ -135,7 +135,7 @@ export default {
             var momentoInicio = new Date((this.fechaInicio + " ") + (this.horaInicio + ":00")).getTime();
             var momentoFin = new Date((this.fechaFin + " ") + (this.horaFin + ":00")).getTime();
 
-            if(momentoActual < momentoInicio || momentoActual > momentoFin){
+            if(momentoActual < momentoInicio || momentoActual > momentoFin || this.fechaInicio == null || this.fechaFin == null || this.horaInicio == null || this.horaFin == null){
                 this.textoSnackbar = "La fechas introducidas no son válidas. Revisa los datos introducidos y la hora actual"
                 this.snackbar = true;
             }else{

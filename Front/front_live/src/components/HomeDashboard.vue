@@ -1,6 +1,6 @@
 <template>
     <v-parallax
-    height="700"
+    height="720"
     src="../assets/live-background.jpg">
         <v-container fluid>
             <v-row>

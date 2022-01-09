@@ -23,10 +23,10 @@
                                 <v-card-subtitle>
                                     {{item.artista}}
                                     <br>
-                                    {{item.bpm}} BPM
+                                    {{item.bpm}} BPM - {{item.genero}}
                                 </v-card-subtitle>
-                                <v-btn fab icon @click="alterarReproduccion(item)">
-                                    <v-icon>{{item.button ? 'mdi-pause' : 'mdi-play'}}</v-icon>
+                                <v-btn fab icon @click="alterarReproduccion(item,i)">
+                                    <v-icon>{{'mdi-play'}}</v-icon>
                                 </v-btn>
                             </div>
 
@@ -62,8 +62,10 @@ export default {
             listaColores: [
                 "indigo lighten-1", "deep-orange lighten-2", "orange lighten-2"
             ],
+            botonesPlay: [false, false, false],
             hayRecomendaciones: false,
             itemsRecomendaciones: null,
+            audios: null,
             textoColumna: "Para obtener recomendaciones, selecciona una canción, ajusta los parámetros y pulsa el botón de recargar situado encima",
 
             /*Variables relacionadas con la snackbar*/
@@ -72,23 +74,53 @@ export default {
         }
     },
     methods:{
-        alterarReproduccion(i){
-            i.button = !i.button;
-        },
         obtenerRecomendaciones(){
             axios
                 .post('http://localhost:3000/obtenerRecomendaciones', {
                     usuario: this.getUsuario
                 })
                 .then(response => {
-                    console.log(response);
+                    if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
+                        this.textoSnackbar = "Ocurrió un error al obtener las recomendaciones";
+                        this.snackbar = true;
+                    }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Incompleto'})){
+                        this.textoSnackbar = "Para obtener recomendaciones, selecciona una canción para reproducir";
+                        this.snackbar = true;
+                    }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Vacio'})){
+                        this.textoSnackbar = "No se han encontrado recomendaciones. Revisa la casilla de género o ajusta la energía";
+                        this.snackbar = true;
+                    }else{
+                        this.itemsRecomendaciones = response.data;
+
+                        this.audios = [];
+                        for(var i=0; i<response.data.length; i++){
+                            this.audios[i] = new Audio(response.data[i].preview);
+                            this.itemsRecomendaciones[i].bpm = parseInt(this.itemsRecomendaciones[i].bpm);
+                        }
+
+                        this.hayRecomendaciones = true;
+                    }
                 })
                 .catch(error => {
                     this.textoSnackbar = "Ocurrió un error al obtener las recomendaciones";
                     this.snackbar = true;
                     console.log(error);
                 })
-        }
+        },
+        alterarReproduccion(item, i){
+            if(item.preview == 'null'){
+                this.textoSnackbar = 'Lo sentimos, no hay disponible una muestra de esta canción';
+                this.snackbar = true;
+            }else{
+                this.botonesPlay[i] = !this.botonesPlay[i];
+    
+                if(this.botonesPlay[i] == false){
+                    this.audios[i].pause();
+                }else{
+                    this.audios[i].play();
+                }
+            }
+        },
     },
     computed:{
         ...mapGetters(['getUsuario'])

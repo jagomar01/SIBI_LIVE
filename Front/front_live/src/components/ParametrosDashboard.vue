@@ -32,6 +32,7 @@
                             label="Modo automático"
                         ></v-checkbox>
                         <v-checkbox
+                            :disabled="!checkboxGeneroActivado"
                             v-model="checkboxGenero"
                             label="Mantener género"
                             @change="actualizarGenero"
@@ -133,6 +134,7 @@ export default {
             porcentajeEnergia: 0,
             checkboxMode: true,
             checkboxGenero: false,
+            checkboxGeneroActivado: true,
             intervalBis: null,
 
             /*Variables relacionadas con la tarjeta de peticiones*/
@@ -193,6 +195,9 @@ export default {
                     if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
                         this.textoSnackbar = "Ocurrió un error al actualizar la petición";
                         this.snackbar = true;
+                    }else{
+                        this.checkboxGeneroActivado = false;
+                        this.actualizarGenero;
                     }
                 })
                 .catch(error => {
@@ -269,7 +274,7 @@ export default {
         actualizarGenero(){
             var genero = 'null';
 
-            if(this.checkboxGenero == true){
+            if(this.checkboxGenero == true && this.checkboxGeneroActivado == true){
                 genero = 'keep';
             }
 
@@ -337,6 +342,9 @@ export default {
                     if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
                         this.textoSnackbar = "Ocurrió un error al actualizar la petición"
                         this.snackbar = true;
+                    }else{
+                        this.checkboxGeneroActivado = true;
+                        this.actualizarGenero;
                     }
                 })
                 .catch(error => {

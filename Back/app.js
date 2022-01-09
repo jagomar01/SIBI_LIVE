@@ -459,7 +459,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                     .then(result => {
                                         if(result.records.length == 0){
                                             /*Si no hay ninguna canción, se finaliza*/
-                                            res.json({msg: 'Vacio bpm'});
+                                            res.json({msg: 'Vacio'});
                                         }else if(result.records.length <= 3){
                                             /*Si hay de 1 a 3 canciones, se devuelven*/
                                             var respuesta = [];
@@ -491,7 +491,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                                 .then(result => {
                                                     if(result.records.length == 0){
                                                         /*Si no hay ninguna canción, se finaliza*/
-                                                        res.json({msg: 'Vacio energia'});
+                                                        res.json({msg: 'Vacio'});
                                                     }else if(result.records.length <= 3){
                                                         /*Si hay de 1 a 3 canciones, se devuelven*/
                                                         var respuesta = [];
@@ -575,7 +575,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                     .then(result => {
                                         if(result.records.length == 0){
                                             /*Si no hay ninguna canción, se finaliza*/
-                                            res.json({msg: 'Vacio genero'});
+                                            res.json({msg: 'Vacio'});
                                         }else if (result.records.length <= 3){
                                             /*Si hay de 1 a 3 canciones, se devuelven*/
                                             var respuesta = [];
@@ -607,7 +607,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                                 .then(result => {
                                                     if(result.records.length == 0){
                                                         /*Si no hay ninguna canción, se finaliza*/
-                                                        res.json({msg: 'Vacio bpm'});
+                                                        res.json({msg: 'Vacio'});
                                                     }else if(result.records.length <= 3){
                                                         /*Si hay de 1 a 3 canciones, se devuelven*/
                                                         var respuesta = [];
@@ -640,7 +640,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                                             .then(result => {
                                                                 if(result.records.length == 0){
                                                                     /*Si no hay ninguna canción, se finaliza*/
-                                                                    res.json({msg: 'Vacio energia'});
+                                                                    res.json({msg: 'Vacio'});
                                                                 }else if(result.records.length <= 3){
                                                                     /*Si hay de 1 a 3 canciones, se devuelven*/
                                                                     var respuesta = [];
@@ -729,7 +729,215 @@ app.post("/obtenerRecomendaciones", function(req,res) {
 
             }else{
                 /*Si hay peticiones, se ejecuta el itinerario de recomendación basado en peticiones (petition-driven)*/
-                /*TODO*/
+                /*Se obtiene información sobre la reproducción actual y la petición*/
+                const gatheringSession = driver.session();
+
+                var gatheringQuery = "MATCH (petition:Song)<-[:WAS_ASKED]-(p:Person {user:'" + usuario + "'})-[:LAST_PLAYED]->(played:Song), " +
+                                    "(p)-[:DESIRES]-(desire:Song) RETURN petition.id, toFloat(petition.bpm), toFloat(petition.energy), " +
+                                    "played.id, toFloat(played.bpm), toFloat(desire.energy)"
+                const gatheringResultPremise = gatheringSession.run(gatheringQuery);
+                gatheringResultPremise
+                    .then(result => {
+                        if(result.records.length == 0){
+                            /*Si no se devuelven los 6 datos, finaliza el proceso*/
+                            res.json({msg: 'Incompleto'});
+                        }else{
+                            var idPeticion = result.records[0]._fields[0];
+                            var bpmPeticion = result.records[0]._fields[1];
+                            var energiaPeticion = result.records[0]._fields[2];
+                            var idUltimo = result.records[0]._fields[3];
+                            var bpmUltimo = result.records[0]._fields[4];
+                            var energiaPreferencia = result.records[0]._fields[5];
+
+                            /*Si se devuelven todos, se calcula el camino más corto entre la reproducción actual y la petición (Dijkstra)*/
+                            const dijkstraSession = driver.session();
+
+                            var dijkstraQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                "RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                            const dijkstraResultPremise = dijkstraSession.run(dijkstraQuery);
+                            dijkstraResultPremise
+                                .then(result => {
+                                    if(result.records.length <= 4){
+                                        /*Si se obtienen 4 resultados o menos, se devuelven directamente*/
+                                        var respuesta = [];
+
+                                        /*Se obvia el nodo origen, ya que es la última reproducción*/
+                                        for(var i=1; i<result.records.length; i++){
+                                            var cancion = {
+                                                id: result.records[i]._fields[0],
+                                                titulo: result.records[i]._fields[1],
+                                                artista: result.records[i]._fields[2],
+                                                bpm: result.records[i]._fields[3],
+                                                genero: result.records[i]._fields[4],
+                                                cover: result.records[i]._fields[5],
+                                                preview: result.records[i]._fields[6]
+                                            };
+                                            
+                                            respuesta.push(cancion);
+                                        }
+
+                                        res.send(respuesta);
+                                    }else{
+                                        /*Si se obtienen más de 4 resultados, se continúa filtrando por bpm*/
+                                        /*Con un margen entre (bpmUltimo, bpmPeticion)*/
+                                        
+                                        const bpmSession = driver.session();
+                                        var bpmQuery = "";
+
+                                        /*Se determina qué bpm es mayor, el de la petición o el de la últma reproducción*/
+                                        if(bpmUltimo > bpmPeticion){
+                                            bpmQuery ="MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                    "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                    "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                    "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                    "WHERE s.bpm >=" + (bpmPeticion) + " AND s.bpm <=" + (bpmUltimo) + 
+                                                    " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                        }else{
+                                            bpmQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                    "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                    "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                    "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                    "WHERE s.bpm >=" + (bpmUltimo) + " AND s.bpm <=" + (bpmPeticion) + 
+                                                    " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                        }
+
+                                        const bpmResultPromise = bpmSession.run(bpmQuery);
+                                        bpmResultPromise
+                                            .then(result => {
+                                                if(result.records.length <= 4){
+                                                    /*Si se obtienen 4 resultados o menos, se devuelven*/
+                                                    var respuesta = [];
+
+                                                    for(var i=1; i<result.records.length; i++){
+                                                        var cancion = {
+                                                            id: result.records[i]._fields[0],
+                                                            titulo: result.records[i]._fields[1],
+                                                            artista: result.records[i]._fields[2],
+                                                            bpm: result.records[i]._fields[3],
+                                                            genero: result.records[i]._fields[4],
+                                                            cover: result.records[i]._fields[5],
+                                                            preview: result.records[i]._fields[6]
+                                                        };
+                                                        
+                                                        respuesta.push(cancion);
+                                                    }
+
+                                                    res.send(respuesta);
+                                                }else{
+                                                    /*Si no, se continúa procesando por energía*/
+                                                    /*Con un margen de (energiaPeticion, energiaPreferencia) +-10%*/
+                                                    const energySession = driver.session();
+                                                    var energyQuery = "";
+
+                                                    /*Se determina qué bpm es mayor, el de la petición o el de la últma reproducción*/
+                                                    if(bpmUltimo > bpmPeticion){
+                                                        /*Se determina qué energía es mayor, la de la petición o la calculada para ese momento de la sesión*/
+                                                        if(energiaPeticion > energiaPreferencia){
+                                                            energyQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                                        "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                                        "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                                        "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                                        "WHERE s.bpm >=" + (bpmPeticion) + " AND s.bpm <=" + (bpmUltimo) + " AND s.energy >=" + (energiaPreferencia*0.90) +
+                                                                        " AND s.energy <= " + (energiaPeticion*1.10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                        }else{
+                                                            energyQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                                        "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                                        "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                                        "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                                        "WHERE s.bpm >=" + (bpmPeticion) + " AND s.bpm <=" + (bpmUltimo) + " AND s.energy >=" + (energiaPeticion*0.90) +
+                                                                        " AND s.energy <= " + (energiaPreferencia*1.10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                        }
+                                                    }else{
+                                                        /*Se determina qué energía es mayor, la de la petición o la calculada para ese momento de la sesión*/
+                                                        if(energiaPeticion > energiaPreferencia){
+                                                            energyQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                                        "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                                        "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                                        "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                                        "WHERE s.bpm >=" + (bpmUltimo) + " AND s.bpm <=" + (bpmPeticion) + " AND s.energy >=" + (energiaPreferencia*0.90) +
+                                                                        " AND s.energy <= " + (energiaPeticion*1.10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                        }else{
+                                                            energyQuery = "MATCH (source:Song {id:" + idUltimo + "}), (target:Song {id:" + idPeticion + "}) " +
+                                                                        "CALL gds.shortestPath.dijkstra.stream('grafoCanciones', {sourceNode: source, " +
+                                                                        "targetNode: target}) YIELD index, sourceNode, targetNode, totalCost, nodeIds, costs, path " +
+                                                                        "WITH [nodeId IN nodeIds | gds.util.asNode(nodeId)] AS nodes UNWIND nodes as s WITH s " +
+                                                                        "WHERE s.bpm >=" + (bpmUltimo) + " AND s.bpm <=" + (bpmPeticion) + " AND s.energy >=" + (energiaPeticion*0.90) +
+                                                                        " AND s.energy <= " + (energiaPreferencia*1.10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                        }
+                                                    }
+
+                                                    const energyResultPremise = energySession.run(energyQuery);
+                                                    energyResultPremise
+                                                        .then(result => {
+                                                            if(result.records.length <= 4){
+                                                                /*Si se obtienen 4 resultados o menos, se devuelven*/
+                                                                var respuesta = [];
+
+                                                                for(var i=1; i<result.records.length; i++){
+                                                                    var cancion = {
+                                                                        id: result.records[i]._fields[0],
+                                                                        titulo: result.records[i]._fields[1],
+                                                                        artista: result.records[i]._fields[2],
+                                                                        bpm: result.records[i]._fields[3],
+                                                                        genero: result.records[i]._fields[4],
+                                                                        cover: result.records[i]._fields[5],
+                                                                        preview: result.records[i]._fields[6]
+                                                                    };
+                                                                    
+                                                                    respuesta.push(cancion);
+                                                                }
+
+                                                                res.send(respuesta);
+                                                            }else{
+                                                                /*Si se sigue obteniendo más de 4 resultados, se escogen los 3 últimos tracks en el camino a la petición*/
+                                                                var respuesta = [];
+
+                                                                for(var i=(result.records.length - 3); i<result.records.length; i++){
+                                                                    var cancion = {
+                                                                        id: result.records[i]._fields[0],
+                                                                        titulo: result.records[i]._fields[1],
+                                                                        artista: result.records[i]._fields[2],
+                                                                        bpm: result.records[i]._fields[3],
+                                                                        genero: result.records[i]._fields[4],
+                                                                        cover: result.records[i]._fields[5],
+                                                                        preview: result.records[i]._fields[6]
+                                                                    };
+                                                                    
+                                                                    respuesta.push(cancion);
+                                                                }
+
+                                                                res.send(respuesta);
+                                                            }
+                                                        })
+                                                        .catch(error => {
+                                                            res.json({msg:'Error'});
+                                                            console.log(error);
+                                                        })
+                                                        .then(() => energySession.close());
+                                                }
+                                            })
+                                            .catch(error => {
+                                                res.json({msg: 'Error'});
+                                                console.log(error);
+                                            })
+                                            .then(() => bpmSession.close());
+                                    }
+                                })
+                                .catch(error => {
+                                    res.json({msg: 'Error'});
+                                    console.log(error);
+                                })
+                                .then(() => dijkstraSession.close());
+                        }
+                    })
+                    .catch(error => {
+                        res.json({msg:'Error'});
+                        console.log(error);
+                    })
+                    .then(() => gatheringSession.close());
             }
         })
         .catch(error => {

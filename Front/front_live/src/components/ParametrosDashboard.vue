@@ -27,6 +27,7 @@
                             </template>
                         </v-slider>
                         <v-checkbox
+                            @change="cambiarModo()"
                             v-model="checkboxMode"
                             label="Modo automático"
                         ></v-checkbox>
@@ -210,6 +211,12 @@ export default {
                         if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
                             this.textoSnackbar = "Ocurrió un error al actualizar la energía";
                             this.snackbar = true;
+                        }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Pendiente'})){
+                            this.textoSnackbar = "Selecciona una canción para poder obtener la energía en modo automático";
+                            this.snackbar = true;
+                        }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Finalizado'})){
+                            this.textoSnackbar = "El tiempo de sesión ha finalizado. Desactiva el modo automatico";
+                            this.snackbar = true;
                         }else{
                             this.porcentajeEnergia = parseInt(response.data.value);
                         }
@@ -337,6 +344,9 @@ export default {
                     this.snackbar = true;
                     console.log(error)
                 })
+        },
+        cambiarModo(){
+            this.actualizarEnergia;
         }
     },
     beforeDestroy() {
@@ -354,7 +364,7 @@ export default {
 
         }, 1000);
 
-        /*Actualizar la energia en modo automático cada 30000 ms (medio minuto)*/
+        /*Actualizar la energia en modo automático cada 5000 ms (5 segundos)*/
         this.intervalBis = setInterval(() => {
             if(this.checkboxMode == true && this.getSetup == true){
                 axios
@@ -364,6 +374,12 @@ export default {
                     .then(response => {
                         if(JSON.stringify(response.data) == JSON.stringify({msg: 'Error'})){
                             this.textoSnackbar = "Ocurrió un error al actualizar la energía";
+                            this.snackbar = true;
+                        }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Pendiente'})){
+                            this.textoSnackbar = "Selecciona una canción para poder obtener la energía en modo automático";
+                            this.snackbar = true;
+                        }else if(JSON.stringify(response.data) == JSON.stringify({msg: 'Finalizado'})){
+                            this.textoSnackbar = "El tiempo de sesión ha finalizado. Desactiva el modo automatico";
                             this.snackbar = true;
                         }else{
                             this.porcentajeEnergia = parseInt(response.data.value);
@@ -376,7 +392,7 @@ export default {
                     })
             }
 
-        }, 30000);
+        }, 5000);
 
         this.recuperarGenero;
         this.recuperarPeticion;

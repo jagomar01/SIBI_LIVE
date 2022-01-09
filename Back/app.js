@@ -248,7 +248,7 @@ app.post("/obtenerEnergia", function(req, res) {
 
     const session = driver.session();
 
-    var query = "MATCH (p:Person {user:'" + usuario + "'})-[:DESIRES]->(s:Song) RETURN toFloat(p.timeBegin), toFloat(p.timeEnd)";
+    var query = "MATCH (p:Person {user:'" + usuario + "'})-[:LAST_PLAYED]->(s:Song) RETURN toFloat(s.energy), toFloat(p.timeBegin), toFloat(p.timeEnd)";
 
     const resultPromise = session.run(query);
     resultPromise
@@ -257,29 +257,38 @@ app.post("/obtenerEnergia", function(req, res) {
             console.log(error);
         })
         .then(result => {
-            var momentoActual = new Date().getTime();
-            var momentoInicio =  result.records[0]._fields[0];
-            var momentoFin = result.records[0]._fields[1];
+            if(result.records.length == 0){
+                res.json({msg: 'Pendiente'});
+            }else{
+                var momentoActual = new Date().getTime();
+                var energiaReproduccionActual = result.records[0]._fields[0];
+                var momentoInicio =  result.records[0]._fields[1];
+                var momentoFin = result.records[0]._fields[2];
 
-            var ecuacion = nerdamer.solveEquations([(momentoInicio + 'a + b = 0'),(momentoFin + 'a + b = 1')]).toString();
-            var a = parseFloat(ecuacion.split(',')[1]);
-            var b = parseFloat(ecuacion.split(',')[3]);
-
-            var momentoNormalizado = momentoActual*a + b;
-            energy = {value: (240*momentoNormalizado) - (240*momentoNormalizado*momentoNormalizado) + 30};
-            
-            const anotherSession = driver.session();
-            var secondQuery = "MATCH (p:Person {user:'" + usuario + "'})-[:DESIRES]->(s:Song) SET s.energy=" + energy.value;
-
-            const secondResultPromise = anotherSession.run(secondQuery);
-            secondResultPromise
-                .catch(error => {
-                    res.json({msg: 'Error'});
-                    console.log(error);
-                })
-                .then(() => session.close());
-
-            res.send(energy);
+                if(momentoActual > momentoFin){
+                    res.json({msg:'Finalizado'});
+                }else{
+                    var ecuacion = nerdamer.solveEquations([(momentoInicio + 'a + b = 0'),(momentoFin + 'a + b = 1')]).toString();
+                    var a = parseFloat(ecuacion.split(',')[1]);
+                    var b = parseFloat(ecuacion.split(',')[3]);
+        
+                    var momentoNormalizado = momentoActual*a + b;
+                    energy = {value: (((240*momentoNormalizado) - (240*momentoNormalizado*momentoNormalizado) + 30) + energiaReproduccionActual)/2};
+                    
+                    const anotherSession = driver.session();
+                    var secondQuery = "MATCH (p:Person {user:'" + usuario + "'})-[:DESIRES]->(s:Song) SET s.energy=" + energy.value;
+        
+                    const secondResultPromise = anotherSession.run(secondQuery);
+                    secondResultPromise
+                        .catch(error => {
+                            res.json({msg: 'Error'});
+                            console.log(error);
+                        })
+                        .then(() => session.close());
+        
+                    res.send(energy);
+                }
+            }
         })
         .then(() => session.close());
 
@@ -475,8 +484,8 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                             const energySession = driver.session();
 
                                             var energyQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) +
-                                                             " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + 
-                                                            " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                             " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - 10) + 
+                                                            " AND s.energy<=" + (energiaPreferencia + 10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
                                             const energyResultPremise = energySession.run(energyQuery);
                                             energyResultPremise
                                                 .then(result => {
@@ -511,7 +520,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                                                         " dampingFactor: 0.85, sourceNodes: [s] }) YIELD nodeId, score" + 
                                                                         " WITH gds.util.asNode(nodeId) as s, score MATCH (p:Person {user: '" + usuario +
                                                                         "'}) WHERE NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + (bpmUltimo + bpmUltimo*0.05) + 
-                                                                        " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + 
+                                                                        " AND s.energy>=" + (energiaPreferencia - 10) + " AND s.energy<=" + (energiaPreferencia + 10) + 
                                                                         " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview ORDER BY score DESC LIMIT 3";
                                                         const pageRankResultPremise = pageRankSession.run(pageRankQuery);
                                                         pageRankResultPremise
@@ -624,8 +633,8 @@ app.post("/obtenerRecomendaciones", function(req,res) {
 
                                                         var energyQuery = "MATCH (s:Song), (p:Person {user: '" + usuario + "'}) WHERE s.genre='" + generoUltimo +
                                                                         "' AND NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + 
-                                                                        (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + 
-                                                                        " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
+                                                                        (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - 10) + 
+                                                                        " AND s.energy<=" + (energiaPreferencia + 10) + " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview";
                                                         const energyResultPremise = energySession.run(energyQuery);
                                                         energyResultPremise
                                                             .then(result => {
@@ -660,7 +669,7 @@ app.post("/obtenerRecomendaciones", function(req,res) {
                                                                                     " dampingFactor: 0.85, sourceNodes: [s] }) YIELD nodeId, score" + 
                                                                                     " WITH gds.util.asNode(nodeId) as s, score MATCH (p:Person {user: '" + usuario +
                                                                                     "'}) WHERE s.genre='" + generoUltimo + "' AND NOT (p)-[:PLAYED]->(s) AND s.bpm >=" + (bpmUltimo - bpmUltimo*0.05) + " AND s.bpm <=" + 
-                                                                                    (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - energiaPreferencia*0.25) + " AND s.energy<=" + (energiaPreferencia + energiaPreferencia*0.25) + 
+                                                                                    (bpmUltimo + bpmUltimo*0.05) + " AND s.energy>=" + (energiaPreferencia - 10) + " AND s.energy<=" + (energiaPreferencia + 10) + 
                                                                                     " RETURN s.id, s.title, s.artist, s.bpm, s.genre, s.cover, s.preview ORDER BY score DESC LIMIT 3";
                                                                     const pageRankResultPremise = pageRankSession.run(pageRankQuery);
                                                                     pageRankResultPremise

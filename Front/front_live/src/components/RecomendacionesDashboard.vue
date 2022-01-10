@@ -92,6 +92,12 @@ export default {
                     }else{
                         this.itemsRecomendaciones = response.data;
 
+                        if(this.audios != null){
+                            for(var j=0; j<this.audios.length; j++){
+                                this.audios[j].pause();
+                            }
+                        }
+
                         this.audios = [];
                         for(var i=0; i<response.data.length; i++){
                             this.audios[i] = new Audio(response.data[i].preview);

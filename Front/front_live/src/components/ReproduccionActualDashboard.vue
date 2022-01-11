@@ -92,7 +92,7 @@ export default {
             /*Variables relacionadas con el cuadro de busqueda*/
             busqueda: null,
             dialog: false,
-            resultadosBusqueda: this.itemsProvisionales,
+            resultadosBusqueda: null,
 
             /*Variables relacionadas con la tarjeta de selección*/
             isCancionSeleccionada: false,
